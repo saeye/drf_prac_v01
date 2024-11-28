@@ -79,6 +79,26 @@ def login(request):
         "refresh": str(refresh),  # Refresh Token 발급
     }, status=HTTP_200_OK)
 
+# 로그아웃 (토큰인증)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])  # 로그인 한 유저만
+def logout(request):
+
+    refresh_token = request.data.get('refresh') # refresh token 가져오기
+
+    if not refresh_token: # refresh token 없을 시
+        return Response({"error": "refresh token이 필요합니다."}, status=HTTP_400_BAD_REQUEST) # 에러메시지 반환
+    
+    try: 
+        token = RefreshToken(refresh_token) # refresh token 객체 생성
+        token.blacklist()  # refresh token 블랙리스트에 추가
+    
+    except Exception: # 유효하지 않은 토큰 예외처리
+        return Response({"error": "유효하지 않은 토큰입니다."}, status=HTTP_400_BAD_REQUEST)  # 에러 메시지 반환
+
+    # 로그아웃 성공 시 반환되는 response
+    return Response({"message": "로그아웃 성공👌"}, status=HTTP_200_OK)
+
 
 # 회원가입 (세션인증)
 @api_view(['POST'])
