@@ -12,7 +12,7 @@ class User(AbstractUser):
     introduction = models.TextField(null=True, blank=True)
     # 프로필 이미지 (이미지 파일, 선택 사항)
     profile_image = models.ImageField(upload_to="profile_images/", null=True, blank=True)
-    # 계정의 활성화 여부 
+    # 계정 활성화 여부 
     is_active = models.BooleanField(default=True)
     # 블랙리스트 여부
     is_blacklist = models.BooleanField(default=False)
