@@ -1,9 +1,9 @@
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_200_OK
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import authenticate
 from django.contrib.auth import login
 from rest_framework.decorators import permission_classes
@@ -15,21 +15,16 @@ User = get_user_model()
 @api_view(['POST'])
 def register(request):
 
-    # 회원가입 시 필수 필드
-    required_fields = ['username', 'email', 'password']
-    # 누락된 필드
-    missing_fields = []
+    # 필수 필드 검증
+    required_fields = ['username', 'email', 'password'] # 필수 필드
+    missing_fields = [] # 누락된 필드
 
-    # 필수 필드 반복
-    for field in required_fields:
-        # 현재 필드에 request.data가 없거나 값이 비어있으면
-        if not request.data.get(field):
-            # 누락된 필드 리스트에 추가
-            missing_fields.append(field)
+    for field in required_fields: # 필수 필드 반복
+        if not request.data.get(field): # 현재 필드에 request.data가 없거나 값이 비어있으면
+            missing_fields.append(field) # 누락된 필드 리스트에 추가
 
-    # 누락된 필드 에러 메시지 반환
-    if missing_fields:
-        return Response({"error": f"{', '.join(missing_fields)}(을)를 입력해주세요."}, status=HTTP_400_BAD_REQUEST)
+    if missing_fields: # 누락된 필드가 있으면
+        return Response({"error": f"{', '.join(missing_fields)}(을)를 입력해주세요."}, status=HTTP_400_BAD_REQUEST) # 에러 메시지 반환
     
     # 데이터 가져오기
     username = request.data.get('username')
@@ -45,15 +40,44 @@ def register(request):
     # 유저 생성
     user = User.objects.create_user(username=username, email=email, password=password)
 
+    # 회원가입 성공 시 반환되는 response
+    return Response({"message": "회원가입 완료👌",}, status=HTTP_201_CREATED)
+
+
+# 로그인 (토큰인증)
+@api_view(['POST'])
+def login(request):
+
+    # 데이터 가져오기
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    # 필수 필드 검증
+    if not username and not password:
+        return Response({"error": "유저네임과 패스워드를 입력해주세요."}, status=HTTP_400_BAD_REQUEST)
+    if not username:
+        return Response({"error": "유저네임을 입력해주세요"}, status=HTTP_400_BAD_REQUEST)
+    if not password:
+        return Response({"error": "패스워드를 입력해주세요."}, status=HTTP_400_BAD_REQUEST)
+
+    # 유저 인증
+    user = authenticate(username=username, password=password)
+
+    # 인증 실패 시
+    if user is None:
+        if not User.objects.filter(username=username).exists(): # 유저네임 있는지 확인
+            return Response({"error": "username 틀림🥲 다시 입력하세요."}, status=HTTP_400_BAD_REQUEST) # 유저네임 잘못된 경우 에러메시지
+        return Response({"error": "password 틀림😟 다시 입력하세요."}, status=HTTP_400_BAD_REQUEST) # 패스워드 잘못된 경우 에러메시지
+    
     # 토큰 발급
     refresh = RefreshToken.for_user(user)
 
-    # 회원가입 성공 시 반환되는 response
+    # 로그인 성공 시 반환되는 response
     return Response({
-        "message": "회원가입 완료👌",
-        "refresh": str(refresh),  # Refresh Token 발급
+        "message": "로그인 성공👌",
         "access": str(refresh.access_token),  # Access Token 발급
-    }, status=HTTP_201_CREATED)
+        "refresh": str(refresh),  # Refresh Token 발급
+    }, status=HTTP_200_OK)
 
 
 # 회원가입 (세션인증)
