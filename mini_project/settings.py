@@ -40,7 +40,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # third party libraries
-    'rest_framework_simplejwt',
     'django_seed',
     'rest_framework',
     'rest_framework.authtoken',
