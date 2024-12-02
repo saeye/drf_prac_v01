@@ -1,12 +1,14 @@
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_200_OK
+from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_200_OK, HTTP_401_UNAUTHORIZED
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import authenticate
 from django.contrib.auth import login
 from rest_framework.decorators import permission_classes
+from django.contrib.auth import login as drf_session_login
+
 
 # User 모델 가져오기
 User = get_user_model() 
@@ -126,11 +128,6 @@ def register_with_session(request):
     # 유저 생성
     user = User.objects.create_user(username=username, email=email, password=password)
 
-    # 자동 로그인 처리
-    user = authenticate(request, username=username, password=password)  # 사용자 인증
-    if user is not None:
-        login(request, user)  # 세션에 유저 정보 저장
-
     # 회원가입 성공 시 반환되는 response
     return Response({
         "message": "회원가입 완료👌",
@@ -139,3 +136,43 @@ def register_with_session(request):
             "email": user.email,
         }
     }, status=HTTP_201_CREATED)
+
+
+# 로그인 (세션인증)
+@api_view(['POST'])
+@permission_classes([AllowAny])  # 모든 사용자 접근 가능
+
+def login_with_session(request):
+    # 클라이언트 데이터 가져오기
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    # 필수 필드 검증
+    missing_fields = []
+    if not username:
+        missing_fields.append("유저네임")
+    if not password:
+        missing_fields.append("패스워드")
+
+    if missing_fields:
+        return Response({"error": f"{', '.join(missing_fields)}을(를) 입력해주세요."}, status=HTTP_400_BAD_REQUEST)
+
+    # 사용자 인증
+    user = authenticate(request=request._request, username=username, password=password)
+    if user is None:
+        # 유저네임 존재 여부 확인
+        if not User.objects.filter(username=username).exists():
+            return Response({"error": "잘못된 유저네임입니다."}, status=HTTP_401_UNAUTHORIZED)
+        return Response({"error": "패스워드가 틀렸습니다. 다시 입력해주세.요"}, status=HTTP_401_UNAUTHORIZED)
+
+    # 세션 로그인 처리
+    drf_session_login(request._request, user)
+
+    # 로그인 성공 시 반환
+    return Response({
+        "message": "로그인 성공👌",
+        "user": {
+            "username": user.username,
+            "email": user.email,
+        }
+    }, status=HTTP_200_OK)
